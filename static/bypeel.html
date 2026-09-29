@@ -451,11 +451,11 @@ function renderOverview(fullData){
 
   // ---- Pipeline flow (animated SVG) ----
   const stages = [
-    {t:'Ingestion', d:'DuckDB/Polars parse CSV/JSON/XML'},
-    {t:'Graph Fusion', d:'IP · Wallet · TX unified graph'},
-    {t:'CIOH + GraphSAGE', d:'Union-Find + embedding clusters'},
-    {t:'Motif Mining', d:'Peel chains · CoinJoin entropy'},
-    {t:'Taint Propagation', d:'Decaying Personalized PageRank'},
+    {t:'Ingestion', d:'CSV/JSON/XML'},
+    {t:'Graph Fusion', d:'IP · Wallet · graph'},
+    {t:'CIOH', d:'Union-Find + emb. clusters'},
+    {t:'Motif Mining', d:'Peel chains · CoinJoin'},
+    {t:'Taint Propagation', d:'Decaying Personalized Rank'},
     {t:'Explainable Alerts', d:'TreeSHAP-ranked lead queue'},
   ];
   const W = 1180, H = 118, n = stages.length;
