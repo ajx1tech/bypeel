@@ -9,7 +9,7 @@
 **Smart India Hackathon 2026 · Problem Statement 26146**
 **Organisation:** National Technical Research Organisation (NTRO) · **Theme:** Blockchain & Cybersecurity · **Team:** Endeavour
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
 ![Offline](https://img.shields.io/badge/Runtime-100%25%20Offline-2E8B57)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -28,7 +28,7 @@
 5. [Architecture](#5-architecture)
 6. [Tech Stack](#6-tech-stack)
 7. [Repository Layout](#7-repository-layout)
-8. [Quick Start](#8-quick-start)
+8. [Installation and Setup](#8-installation-and-setup)
 9. [Using It](#9-using-it)
 10. [Dataset and Schema](#10-dataset-and-schema)
 11. [Methodology](#11-methodology)
@@ -161,7 +161,7 @@ statement) rather than overstating coverage.
                                │ HTTP, localhost only
                                ▼
  ┌───────────────────────────────────────────────────────────────────────┐
- │  Backend — app/  (FastAPI, Python 3.10+)                                │
+ │  Backend — app/  (FastAPI, Python 3.11-3.13)                            │
  │                                                                         │
  │  ingest.py        CSV / JSON / XML → normalized pandas DataFrame        │
  │  geoip_lookup.py  Offline MaxMind GeoLite2 (.mmdb) country/ASN enrich   │
@@ -190,19 +190,21 @@ someone opens the HTML file without ever starting the server.
 
 ## 6. Tech Stack
 
-| Layer | Tools |
-|---|---|
-| Language | Python 3.10+ |
-| Data handling | pandas, NumPy |
-| Storage | SQLite (stdlib `sqlite3`) |
-| GeoIP | MaxMind GeoLite2 (offline `.mmdb`) + `geoip2` |
-| Graph | NetworkX (Union-Find for CIOH entity resolution) |
-| Anomaly detection | scikit-learn `IsolationForest` |
-| Explainability | SHAP (`TreeExplainer`) |
-| Backend API | FastAPI + Uvicorn |
-| Frontend | Vanilla JS + D3.js (graph) + Chart.js (charts) + PapaParse (CSV) — all vendored, zero CDN |
-| Model persistence | `joblib` |
-| Report export | Browser-native print-to-PDF (chain-of-custody hashing via Web Crypto `SHA-256`); `reportlab` available for a server-rendered alternative |
+| Layer | Tools | Pinned version |
+|---|---|---|
+| Language | Python (64-bit) | 3.11 – 3.13 |
+| Data handling | pandas, NumPy | 2.2.3, 2.2.6 |
+| Storage | SQLite (stdlib `sqlite3`) | bundled with Python |
+| GeoIP | MaxMind GeoLite2 (offline `.mmdb`) + `geoip2` | 4.8.0 |
+| Graph | NetworkX (Union-Find for CIOH entity resolution) | 3.4.2 |
+| Anomaly detection | scikit-learn `IsolationForest` | **1.9.0** (matches the bundled model) |
+| Explainability | SHAP (`TreeExplainer`), numba, llvmlite | 0.48.0, 0.61.2, 0.44.0 |
+| Backend API | FastAPI + Uvicorn + python-multipart | 0.115.6, 0.32.1, 0.20 |
+| Frontend | Vanilla JS + D3.js (graph) + Chart.js (charts) + PapaParse (CSV) — all vendored, zero CDN | files in `static/vendor/` |
+| Model persistence | `joblib` | 1.4.2 |
+| Report export | Browser-native print-to-PDF (chain-of-custody hashing via Web Crypto `SHA-256`); `reportlab` available for a server-rendered alternative | 4.2.5 |
+
+All versions are pinned in `requirements.txt` (direct) and `requirements.lock.txt` (complete) — see §8.7.
 
 ---
 
@@ -242,9 +244,12 @@ bypeel/
 │   └── ranked_alerts.csv
 ├── scripts/
 │   └── train_model.py       Retrain the IsolationForest on your own data
-├── requirements.txt
+├── requirements.txt          Direct dependencies, exact pins
+├── requirements.lock.txt     Every package pinned, wheels-only, Windows/Linux/macOS, Python 3.11-3.13
 ├── run.sh                    One-command setup + launch (Linux/macOS)
 ├── run.bat                   One-command setup + launch (Windows)
+├── wheelhouse/               OPTIONAL: pre-downloaded wheels for offline installs (see §17; git-ignored)
+├── .gitattributes            Keeps run.sh as LF and run.bat as CRLF line endings
 ├── .gitignore
 └── README.md
 ```
@@ -265,39 +270,204 @@ local case storage, not source code.
 
 ---
 
-## 8. Quick Start
+## 8. Installation and Setup
 
-### Linux / macOS
+> **For judges and evaluators.** Follow **one** track — Linux (§8.3) *or* Windows (§8.4).
+> Each ends with the dashboard open in your browser. Expect about 5 minutes: roughly
+> **145 MB** of Python packages are downloaded **once**, and from then on bypeel never
+> touches the network again (a fully offline method is in §17).
+
+### 8.1 What you need
+
+| | Requirement |
+|---|---|
+| **Python** | **3.11, 3.12 or 3.13 — 64-bit.** Recommended: **3.12**. |
+| **OS** | Windows 10/11 (x64) · Ubuntu 22.04 / 24.04 · Debian 12 · other mainstream x86-64 Linux · macOS (wheels resolve; see matrix below) |
+| **Disk / RAM** | ≈ 650 MB for the virtual environment + ≈ 15 MB for the repo · 4 GB RAM |
+| **Network** | Only once, so `pip` can fetch packages. Not needed to run. |
+| **C/C++ compiler** | **Not needed.** Every dependency installs from a pre-built wheel; the scripts pass `--only-binary=:all:`, so a missing wheel fails in seconds with a short message instead of a long compiler traceback. |
+| **Git** | Optional — you can download the repository as a ZIP instead. |
+
+**Why not Python 3.10 or 3.14?** The bundled model (`models/isolation_forest.pkl`) was pickled
+with **scikit-learn 1.9.0**, and bypeel pins exactly that version so the model loads with no
+warnings. scikit-learn 1.9.x publishes wheels only for Python ≥ 3.11, and the pinned
+`shap`/`numba` stack only goes up to 3.13. So the supported window is **3.11 – 3.13**.
+Ubuntu 22.04 ships Python 3.10 — the Linux track below shows how to add 3.12 beside it.
+
+### 8.2 Check your Python first (30 seconds)
+
+Run this in any terminal (Linux, macOS, Windows PowerShell or CMD):
+
 ```bash
-git clone <your-repo-url> bypeel
+python3 -c "import sys,struct; print(sys.version.split()[0], str(struct.calcsize('P')*8)+'-bit')"
+```
+On Windows use `python` instead of `python3` (or `py -3.12`). You need to see
+`3.11.x`, `3.12.x` or `3.13.x` **and** `64-bit`. If not, do Step 1 of your track.
+You can also skip this check: `run.sh` / `run.bat` search for a suitable Python themselves
+and tell you exactly what to install if they find none.
+
+### 8.3 Linux track (Ubuntu / Debian / Fedora / others)
+
+**Step 1 — install system packages**
+
+```bash
+# Ubuntu 24.04 (Python 3.12) and Debian 12 (Python 3.11):
+sudo apt update && sudo apt install -y git python3 python3-venv python3-pip
+
+# Ubuntu 22.04 (ships Python 3.10 — too old; install 3.12 alongside it):
+sudo apt update && sudo apt install -y git software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update && sudo apt install -y python3.12 python3.12-venv
+
+# Fedora:
+sudo dnf install -y git python3.12
+```
+*Any other distro, or no root access?* Install the `uv` tool and let it fetch Python 3.12:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.bashrc
+uv python install 3.12
+```
+
+**Step 2 — get the code**
+
+```bash
+git clone https://github.com/ajx1tech/bypeel.git
 cd bypeel
+ls      # you should see: app  data  models  sample_data  static  run.sh  requirements.lock.txt ...
+```
+
+**Step 3 — run it**
+
+```bash
 chmod +x run.sh
 ./run.sh
 ```
-
-### Windows
-```cmd
-git clone <your-repo-url> bypeel
-cd bypeel
-run.bat
-```
-
-Open **http://127.0.0.1:8000** either way.
-
-Both scripts: create a virtual environment → install dependencies (the only
-step that needs internet — pip fetching packages) → sanity-check the model
-and GeoIP database load offline → start the server. From then on the
-running application makes **zero** network calls.
-
-### Manual setup (without run.sh/run.bat)
+Python 3.12 installed beside the system 3.10, or via `uv`? Tell the script which one:
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+PYTHON=python3.12 ./run.sh                 # apt / deadsnakes
+PYTHON="$(uv python find 3.12)" ./run.sh   # uv
 ```
-Requirements: Python 3.10–3.12. No GPU, no external database server, no
-internet after the initial `pip install`.
+Expected output (first run takes 1–3 minutes, mostly the download):
+```
+[bypeel] Using Python 3.12.x (/usr/bin/python3.12)
+[bypeel] Creating virtual environment...
+[bypeel] Installing dependencies (first run needs internet; afterwards 100% offline)...
+[bypeel] Verifying model + GeoIP database load correctly...
+  Model + GeoIP OK
+[bypeel] Starting server on http://127.0.0.1:8000  (Ctrl+C to stop)
+```
+
+**Step 4 — open <http://127.0.0.1:8000>** in a browser, then continue with §8.5.
+
+<details>
+<summary><b>Prefer typing the commands yourself?</b> (exactly what <code>run.sh</code> does)</summary>
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install --only-binary=:all: -r requirements.lock.txt
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+</details>
+
+### 8.4 Windows track (Windows 10 / 11, 64-bit)
+
+**Step 1 — install Python 3.12 (64-bit) and Git**
+
+Open **PowerShell** and run:
+```powershell
+winget install -e --id Python.Python.3.12
+winget install -e --id Git.Git
+```
+No `winget`? Download the **Windows installer (64-bit)** from <https://www.python.org/downloads/windows/>
+and **tick "Add python.exe to PATH"** on the first screen of the installer.
+**Close PowerShell and open a new window** (so PATH is refreshed), then check:
+```powershell
+python -c "import sys,struct; print(sys.version.split()[0], str(struct.calcsize('P')*8)+'-bit')"
+```
+It must print `3.12.x 64-bit` (or 3.11 / 3.13).
+
+**Step 2 — get the code** (use a short path such as `C:\` — Windows limits paths to 260 characters and the virtual environment is deeply nested)
+
+```powershell
+cd C:\
+git clone https://github.com/ajx1tech/bypeel.git
+cd bypeel
+dir      # you should see: app  data  models  sample_data  static  run.bat  requirements.lock.txt ...
+```
+
+**Step 3 — run it**
+
+```powershell
+.\run.bat          # in PowerShell the  .\  prefix is mandatory
+```
+(In Command Prompt: `run.bat`.) Expected output matches the Linux example above. The script never
+needs administrator rights and never needs `Set-ExecutionPolicy`, because it calls
+`.venv\Scripts\python.exe` directly instead of activating the environment.
+
+**Step 4 — open <http://127.0.0.1:8000>** in a browser, then continue with §8.5.
+
+<details>
+<summary><b>Prefer typing the commands yourself?</b> (exactly what <code>run.bat</code> does)</summary>
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r requirements.lock.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+`py -3.12` is the Python Launcher that the python.org installer provides; use `python` if you do not have it.
+</details>
+
+### 8.5 Verification checklist (what to click)
+
+1. **Health** — open <http://127.0.0.1:8000/api/health>. Expect `"status":"ok"`, 17 `model_features`, and `"shap_available":true`.
+2. **Dashboard** — <http://127.0.0.1:8000> opens on **1 · Ingest**.
+3. **Zero external requests** — press **F12 → Network → reload**. Every row (`d3.min.js`, `chart.umd.min.js`, `papaparse.min.js`, …) is served from `127.0.0.1:8000` with status 200. Nothing leaves the machine.
+4. **Run the pipeline** — click **Load Demo Dataset & Analyze**, *or* upload `sample_data/labeled_transactions.csv`, keep **Use Python ML backend** ticked, and click **Process Dataset**. The six pipeline stages complete in seconds and the Overview, Graph Explorer, and Alerts tabs fill with results.
+5. **Local persistence** — return to **1 · Ingest → Saved Cases** and click **Open** on your run. It reloads instantly from the local SQLite file `data/bypeel.db` without reprocessing.
+
+### 8.6 Stop, restart, update, reset
+
+| Task | Command |
+|---|---|
+| Stop the server | `Ctrl+C` in its terminal |
+| Start again later | Run `./run.sh` / `.\run.bat` again — it skips everything already installed and starts in seconds |
+| Use another port | Linux: `PORT=8001 ./run.sh` · PowerShell: `$env:PORT=8001; .\run.bat` · CMD: `set "PORT=8001" & run.bat` |
+| Get the latest code | `git pull`, then run the script again |
+| Clean reinstall | Delete the `.venv` folder (`rm -rf .venv` / `Remove-Item -Recurse -Force .venv`) and run the script again |
+| Wipe all saved cases | Delete `data/bypeel.db` (recreated automatically) |
+
+### 8.7 Pinned dependency versions
+
+`requirements.txt` lists the direct dependencies and `requirements.lock.txt` pins **every**
+package, including transitive ones, with environment markers for Windows / Linux / macOS and
+Python 3.11–3.13. The scripts install from the lockfile, so a judge's install is the same on
+every machine and cannot be broken by a package that was released the day before.
+
+| Package | Version | Why it is pinned |
+|---|---|---|
+| Python | 3.11 – 3.13 (64-bit) | scikit-learn 1.9.x needs ≥ 3.11; shap/numba stack needs ≤ 3.13 |
+| scikit-learn | **1.9.0** | exact version that pickled the bundled model → loads with zero warnings |
+| numpy / pandas | 2.2.6 / 2.2.3 | have wheels for 3.11–3.13 on Windows, Linux, macOS |
+| shap · numba · llvmlite | 0.48.0 · 0.61.2 · 0.44.0 | the SHAP explainer; 0.48.0 ships Python 3.13 wheels (0.47.2 does not) |
+| networkx · geoip2 · joblib | 3.4.2 · 4.8.0 · 1.4.2 | graph engine · offline GeoIP reader · model loading |
+| fastapi · uvicorn · python-multipart | 0.115.6 · 0.32.1 · 0.20 | local API server and file upload |
+| reportlab | 4.2.5 | optional server-side PDF export |
+
+<details>
+<summary><b>Verification matrix — what has actually been tested</b></summary>
+
+| Check | Result |
+|---|---|
+| `pip install` of the lockfile, wheels only, Linux x86-64, Python **3.11 / 3.12 / 3.13**; `pip check` clean | ✅ |
+| On each of those: bundled model loads with **0 warnings**, SHAP `TreeExplainer`, GeoIP lookup, NetworkX graph | ✅ (warnings treated as errors) |
+| `run.sh` from an empty directory: auto-selects Python 3.12 although `python3` was 3.10 → venv → install → self-check → server → `/api/health` | ✅ |
+| `run.sh` refuses to start on Python 3.10 only, with an install hint | ✅ |
+| Fully offline install from a `wheelhouse/` (56 wheels, 143 MB, `--no-index`) and server start | ✅ |
+| Wheel availability of every pin for **Windows x64** and **macOS**, Python 3.11–3.13 (`--only-binary` resolution) | ✅ |
+| `run.bat` | Same logic as `run.sh`; **not yet executed on a physical Windows PC** — if anything misbehaves, the four manual PowerShell commands in §8.4 are equivalent |
+</details>
 
 ---
 
@@ -493,31 +663,82 @@ in-place. The backend picks it up automatically on next restart.
 
 ## 17. Running Fully Air-Gapped
 
-Everything is already vendored — there is nothing to download for runtime.
+At runtime bypeel needs nothing from the internet: the three frontend libraries are served
+from `static/vendor/`, GeoIP reads `data/geoip/GeoLite2-Country.mmdb` from disk, and the model
+loads from `models/isolation_forest.pkl`. No `fetch()` in the dashboard targets an external host.
+The **only** thing that ever comes from the internet is the Python packages, once, via `pip`.
+Choose how to get them onto the machine:
+
+### Option A — one-time online install (simplest)
+Follow §8 on a connected machine. After the first successful run you can unplug the network
+permanently; `./run.sh` / `.\run.bat` keep working and the self-check confirms the model and
+GeoIP database load from local disk.
+
+### Option B — the target machine is never connected (wheelhouse)
+Build a folder of pre-downloaded packages on **any connected machine that has the same OS, CPU
+architecture and Python minor version (e.g. Windows x64 + 3.12) as the target**, copy it next
+to the code, and the launch scripts install from it with `--no-index`.
+
 ```bash
-# disconnect network, then:
-./run.sh    # first run must happen WITH internet (pip install); subsequent runs don't need it
+# Linux (connected machine, Python 3.12) — run inside the bypeel folder:
+python3.12 -m pip download --only-binary=:all: -r requirements.lock.txt -d wheelhouse
 ```
-All three frontend libraries are served from `static/vendor/` by the
-FastAPI static mount, GeoIP resolution reads
-`data/geoip/GeoLite2-Country.mmdb` directly off disk, and the ML model
-loads from `models/isolation_forest.pkl` via `joblib`. No `fetch()` in the
-frontend ever targets an external host.
+```powershell
+# Windows (connected machine, Python 3.12) — run inside the bypeel folder:
+py -3.12 -m pip download --only-binary=:all: -r requirements.lock.txt -d wheelhouse
+```
+This produces about 56 files (≈ 145 MB). Copy the **whole `bypeel` folder, including `wheelhouse/`**,
+to the air-gapped machine (USB drive / internal share) and run `./run.sh` or `.\run.bat`. The script
+prints `wheelhouse found - installing 100% offline from local wheels...`.
+Python itself must already be installed on the target (download the installer once from python.org).
+A wheelhouse built on Linux cannot be used on Windows, or the other way round.
+
+### Prove it to a judge
+Disconnect Wi-Fi / unplug Ethernet, start bypeel, and repeat the checklist in §8.5 — everything works.
+In the browser's Network tab every request is to `127.0.0.1`.
 
 ---
 
 ## 18. Troubleshooting
 
-| Symptom | Fix |
-|---|---|
-| `ModuleNotFoundError` on startup | Activate the venv first, or re-run `pip install -r requirements.txt`. |
-| `InconsistentVersionWarning` from sklearn | Harmless — the bundled model was pickled with a slightly different scikit-learn point release. Safe to ignore, or retrain with §16 to silence it. |
-| `/api/process` returns 500 | Check the terminal running uvicorn — the full traceback is logged there. Most common cause: uploaded file is missing a `timestamp` or `txid` column. |
-| GeoIP shows "Unknown" for every IP | Confirm `data/geoip/GeoLite2-Country.mmdb` exists (it ships in this repo). |
-| Port 8000 already in use | `uvicorn app.main:app --host 127.0.0.1 --port 8001` and open that port instead. |
-| "Saved Cases" panel says backend not running | Start the server with `./run.sh` / `run.bat`. |
-| Large dataset (100k+ tx) is slow | `src_ip_burst_count` in `app/features.py` is O(n) per IP group; pre-aggregate by IP or widen the burst window bucket for very large corpora. |
-| Want real ASN numbers, not just country | Download the separate (free, MaxMind-account-gated) **GeoLite2-ASN.mmdb** and drop it in `data/geoip/` — auto-detected. |
+Find your message in the table. If it is not there, jump to **"Collect diagnostics"** below.
+
+| What you see | Cause | Fix |
+|---|---|---|
+| `no 64-bit Python 3.11, 3.12 or 3.13 found` (printed by `run.sh` / `run.bat`) | Python is missing, too old (3.10 or earlier), too new (3.14), or 32-bit | Install **64-bit Python 3.12** (§8.3 step 1 / §8.4 step 1), open a **new** terminal, run the script again. |
+| `ERROR: Could not find a version that satisfies the requirement scikit-learn==1.9.0 … No matching distribution found` | You ran `pip install` by hand on Python 3.10 or older | Use Python 3.11–3.13. scikit-learn 1.9.0 is pinned on purpose to match the bundled model. |
+| `Could not find vswhere.exe` / `meson setup … failed` / `error: metadata-generation-failed` / `Microsoft Visual C++ 14.0 or greater is required` | pip tried to **compile** a package because no wheel matched — almost always 32-bit Python or Python 3.14 | Install 64-bit Python 3.12, delete `.venv`, run again. The scripts pass `--only-binary=:all:`, so you should now get a short "No matching distribution" message instead. |
+| PowerShell: `run.bat : The term 'run.bat' is not recognized` | PowerShell does not run files from the current folder without a path | Type `.\run.bat` (with `.\`). |
+| `'python' is not recognized` or typing `python` opens the Microsoft Store | Python is not on PATH, or the Store "app execution alias" is intercepting it | Reinstall Python and tick **Add python.exe to PATH**; or *Settings → Apps → Advanced app settings → App execution aliases* → turn **off** `python.exe` and `python3.exe`; open a new terminal. `run.bat` also tries `py -3.12`, `py -3.13`, `py -3.11`. |
+| `running scripts is disabled on this system` / `PSSecurityException` (only if you try `Activate.ps1` yourself) | PowerShell execution policy | Not needed for bypeel: use the scripts or the manual commands, which call `.venv\Scripts\python.exe` directly. If you still want to activate: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`. |
+| `The virtual environment was not created successfully because ensurepip is not available` (Linux) | Debian/Ubuntu ship `venv` as a separate package | `sudo apt install -y python3-venv` (or `python3.12-venv`), delete `.venv`, run again. |
+| `error: externally-managed-environment` | You ran `pip install` outside the virtual environment on a modern distro | Use `./run.sh`, or the manual commands that call `.venv/bin/python -m pip`. |
+| `ModuleNotFoundError: No module named 'app'` / `'pandas'` / `'sklearn'` | The server was started with the system Python instead of the `.venv` one, or you are not in the repository root | `cd` into the folder that contains `run.sh`, then start through the script or `.venv/bin/python -m uvicorn …` (`.\.venv\Scripts\python.exe -m uvicorn …` on Windows). |
+| `InconsistentVersionWarning` from scikit-learn | A scikit-learn version other than 1.9.0 is installed (the lockfile prevents this) | Delete `.venv` and run the script again; do not run `pip install -U scikit-learn`. |
+| `Cannot find path … 'bypeel-repo'` / `can't open file … run.sh` | You are in the wrong folder (a ZIP often unpacks into `bypeel-main/`) | `cd bypeel-main` (or whatever the folder is called); `ls` / `dir` must show `run.sh` and `app`. |
+| `[Errno 98] address already in use` / `only one usage of each socket address` | Something already listens on port 8000 (often a previous bypeel) | Use another port: `PORT=8001 ./run.sh`. To find the culprit — Linux: `ss -ltnp \| grep 8000`; Windows: `netstat -ano \| findstr :8000`. |
+| pip hangs or says `Connection timed out` / `ProxyError` | Corporate or campus proxy during the one-time install | Set the proxy first — Linux: `export HTTPS_PROXY=http://host:port`; PowerShell: `$env:HTTPS_PROXY="http://host:port"` — then rerun. Or use the offline wheelhouse (§17). |
+| Browser shows the old page, or charts are blank | Cached page | Hard refresh: `Ctrl+Shift+R` (`Cmd+Shift+R` on macOS). |
+| "Saved Cases" says backend not running | Server is not running, or the page was opened as a file instead of via `http://127.0.0.1:8000` | Start the server and use the URL. |
+| `/api/process` returns 500 | Bad input file | The full traceback is in the server terminal. Most common cause: the file has no `timestamp` or `txid` column. |
+| GeoIP shows "Unknown" for every IP | Database file missing | Confirm `data/geoip/GeoLite2-Country.mmdb` exists (it ships in the repo). |
+| Large dataset (100k+ tx) is slow | `src_ip_burst_count` in `app/features.py` is O(n) per IP group | Pre-aggregate by IP or widen the burst-window bucket for very large corpora. |
+| Want real ASN numbers, not just country | Free edition is Country-only | Download MaxMind's separate **GeoLite2-ASN.mmdb** (free account) into `data/geoip/` — auto-detected. |
+
+### Collect diagnostics (paste this output when asking for help)
+
+```bash
+# Linux / macOS (inside the bypeel folder)
+python3 --version; uname -m; ls
+.venv/bin/python --version
+.venv/bin/python -m pip list 2>/dev/null | grep -i -E "scikit-learn|numpy|pandas|shap|numba|fastapi|uvicorn"
+```
+```powershell
+# Windows PowerShell (inside the bypeel folder)
+python --version; py -0p; $env:PROCESSOR_ARCHITECTURE; dir
+.\.venv\Scripts\python.exe --version
+.\.venv\Scripts\python.exe -m pip list | Select-String -Pattern "scikit-learn|numpy|pandas|shap|numba|fastapi|uvicorn"
+```
 
 ---
 
@@ -547,6 +768,7 @@ frontend ever targets an external host.
 - [x] Local SQLite case persistence with instant reload
 - [x] Client-side JS fallback engine (zero-install demo mode)
 - [x] Zero-CDN, fully vendored frontend
+- [x] Reproducible install: exact-pinned lockfile, wheels-only, Python 3.11–3.13 on Windows and Linux, with an offline wheelhouse option
 
 ---
 
