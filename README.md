@@ -12,7 +12,6 @@
 ![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
 ![Offline](https://img.shields.io/badge/Runtime-100%25%20Offline-2E8B57)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-informational)
-![License](https://img.shields.io/badge/License-MIT-blue)
 ![Status](https://img.shields.io/badge/Status-Working%20Prototype-yellow)
 
 </div>
@@ -745,7 +744,7 @@ python --version; py -0p; $env:PROCESSOR_ARCHITECTURE; dir
 ## 19. Roadmap
 
 **In progress**
-- [ ] Split `static/bypeel.html` into a conventional `static/dashboard/{index.html, css/, js/}` structure for easier navigation, with zero behavior change
+- [ ] Split `static/bypeel.html` into a conventional `static/dashboard/{index.html, css/, js/}`/advanced configuration structure for easier navigation, with zero behavior change
 
 **Planned — closing gaps identified against other public submissions**
 - [ ] Multi-hop, decaying **Personalized PageRank** taint propagation from seed illicit addresses (`networkx.pagerank` with a personalization vector — extension point already identified in `app/graph_engine.py`)
@@ -778,7 +777,6 @@ python --version; py -0p; $env:PROCESSOR_ARCHITECTURE; dir
 
 ---
 
-*This repository is developed as part of Smart India Hackathon 2026,
-Problem Statement 26146. Refer to the sections above for dataset
+*Refer to the sections above for dataset
 provenance, usage limitations, deployment requirements, and security
 considerations.*
